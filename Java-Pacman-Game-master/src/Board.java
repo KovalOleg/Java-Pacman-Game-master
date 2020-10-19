@@ -34,8 +34,10 @@ public class Board extends JPanel implements ActionListener {
     private boolean inGame = true;
     private boolean dying = false;
 
+    private BFS bfs;
     private ArrayDeque<Point> way;
 
+    private Point next = null;
     private final int BLOCK_SIZE = 24;
     private final int N_BLOCKS = 15;
     private final int SCREEN_SIZE = N_BLOCKS * BLOCK_SIZE;
@@ -117,7 +119,7 @@ public class Board extends JPanel implements ActionListener {
         dx = new int[4];
         dy = new int[4];
 
-        timer = new Timer(40, this);
+        timer = new Timer(80, this);
         timer.start();
     }
 
@@ -151,7 +153,7 @@ public class Board extends JPanel implements ActionListener {
             * */
             int pos = pacman_x / BLOCK_SIZE + N_BLOCKS * (int) (pacman_y / BLOCK_SIZE);
             movePacman();
-//            changeBlock(pos);
+            changeBlock(pos);
             drawPacman(g2d);
 //            moveGhosts(g2d);
             checkMaze();
@@ -159,36 +161,36 @@ public class Board extends JPanel implements ActionListener {
     }
 
     private void changeBlock(int pos) {
-        Point next = way.peekFirst();
-        if(next.getPositionRaw()==pos-1){
-            req_dx = -1;
-            req_dy = 0;
-        } else if (next.getPositionRaw()==pos+1){
-            req_dx = 1;
-            req_dy = 0;
-        } else if(next.getPositionRaw()==pos-N_BLOCKS){
-            req_dx = 0;
-            req_dy = -1;
+        if(next == null)next = way.pollFirst();
+            else
+                if(next.getPositionRaw()==pos)
+                    next = way.pollFirst();
+//                    System.out.println("Why?");
+                else
+                    next = null;
+
+        if (!way.isEmpty()) {
+            if (next != null) {
+                if (next.getPositionRaw() == pos - 1) {
+                    req_dx = -1;
+                    req_dy = 0;
+                } else if (next.getPositionRaw() == pos + 1) {
+                    req_dx = 1;
+                    req_dy = 0;
+                } else if (next.getPositionRaw() == pos - N_BLOCKS) {
+                    req_dx = 0;
+                    req_dy = -1;
+                } else if (next.getPositionRaw() == pos + N_BLOCKS) {
+                    req_dx = 0;
+                    req_dy = 1;
+                }
+        }
         } else {
             req_dx = 0;
-            req_dy = 1;
+            req_dy = 0;
+            bfs.setWay(way);
+            way = bfs.continueFind();
         }
-    }
-
-    private void showIntroScreen(Graphics2D g2d) {
-
-        g2d.setColor(new Color(0, 32, 48));
-        g2d.fillRect(50, SCREEN_SIZE / 2 - 30, SCREEN_SIZE - 100, 50);
-        g2d.setColor(Color.white);
-        g2d.drawRect(50, SCREEN_SIZE / 2 - 30, SCREEN_SIZE - 100, 50);
-
-        String s = "Press s to start.";
-        Font small = new Font("Helvetica", Font.BOLD, 14);
-        FontMetrics metr = this.getFontMetrics(small);
-
-        g2d.setColor(Color.white);
-        g2d.setFont(small);
-        g2d.drawString(s, (SCREEN_SIZE - metr.stringWidth(s)) / 2, SCREEN_SIZE / 2);
     }
 
     private void drawScore(Graphics2D g) {
@@ -341,17 +343,17 @@ public class Board extends JPanel implements ActionListener {
             int i,j, current = 0;
             for (i = 0; i< N_BLOCKS; i++){
                 for(j = 0; j < N_BLOCKS; j++){
-                    if(pos == current) passedWays[i][j]=new Point(i,j,current,true, levelData[current]); else passedWays[i][j]=new Point(i,j,current,false, levelData[current]);
+
+                    if(pos == current) passedWays[i][j]=new Point(i,j,current,true, levelData[current]); else
+                        if(passedWays[i][j].isPassed())
+                            passedWays[i][j]=new Point(i,j,current,true, levelData[current]); else
+                                passedWays[i][j]=new Point(i,j,current,false, levelData[current]);
                 }
             }
-            System.out.println('h');
             if ((ch & 16) != 0) {
                 screenData[pos] = (short) (ch & 15);
                 score++;
             }
-
-//            System.out.println(pos);
-
             if (req_dx != 0 || req_dy != 0) {
                 if (!((req_dx == -1 && req_dy == 0 && (ch & 1) != 0)
                         || (req_dx == 1 && req_dy == 0 && (ch & 4) != 0)
@@ -525,7 +527,6 @@ public class Board extends JPanel implements ActionListener {
             short ch = screenData[i];
             if ((ch & 16) != 0 && (++currentBlock!=randomPlaceToBlock)) {
                 screenData[i] = (short) (ch & 15);
-                System.out.println("I am happy!");
             }
 //            screenData[i] = levelData[i];
 //            if((screenData[i] & 16) != 0 )) screenData[i]=(short)(screenData[i] & 15);
@@ -543,9 +544,8 @@ public class Board extends JPanel implements ActionListener {
             }
 
         }
-        BFS bfs = new BFS(passedWays);
+        bfs = new BFS(passedWays);
         way = bfs.BSF();
-
         continueLevel();
     }
 
